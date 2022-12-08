@@ -1,5 +1,5 @@
 import styles from "../styles/style";
-import { discount, robot } from "../assets";
+import { robot } from "../assets";
 import GetStarted from "./GetStarted";
 import Image from "next/image";
 
@@ -21,7 +21,7 @@ const Hero = () => {
           <span className="text-gradient">Security</span> layer <br className="sm:block hidden" />
           for web3.
         </h1>
-        <p className={`${styles.paragraph} max-w-[470px] mt-5`}>
+        <p className={`${styles.paragraph} max-w-[470px] mt-5 text-gradient`}>
           We are the world’s lightest blockchain, powered by participants. Using zero knowledge technology, Mina is creating the infrastructure for the secure, democratic future we all deserve.
         </p>
       </div>

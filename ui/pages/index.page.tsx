@@ -1,19 +1,17 @@
 import styles from "../styles/style";
 import { Stats, Hero } from "../components";
 import Image from "next/image";
-import { close, logo, menu } from "../assets";
+import { close, auro, menu } from "../assets";
 import Button from "../components/Button";
 import { useEffect, useState } from "react";
+import { ToastContainer, toast } from "react-toastify";
 
 import "./reactCOIServiceWorker";
+import "react-toastify/dist/ReactToastify.css";
 
 import ZkappWorkerClient from "./zkappWorkerClient";
 
-import {
-  PublicKey,
-  PrivateKey,
-  Field,
-} from 'snarkyjs'
+import { PublicKey, PrivateKey, Field, isReady } from "snarkyjs";
 
 export default function Home() {
   let [state, setState] = useState({
@@ -29,53 +27,19 @@ export default function Home() {
 
   const [toggle, setToggle] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      if (!state.hasBeenSetup) {
-        const zkappWorkerClient = new ZkappWorkerClient();
-
-        console.log("Loading SnarkyJS...");
-        await zkappWorkerClient.loadSnarkyJS();
-        console.log("done");
-
-        setState({
-          ...state,
-          hasBeenSetup: true,
-        });
-      }
-    })();
-  }, []);
-
   // -------------------------------------------------------
   // Wait for account to exist, if it didn't
 
-  useEffect(() => {
-    (async () => {
-      if (state.hasBeenSetup && state.hasWallet && !state.accountExists) {
-        for (;;) {
-          console.log("checking if account exists...");
-          const res = await state.zkappWorkerClient!.fetchAccount({ publicKey: state.publicKey! });
-          const accountExists = res.error == null;
-          if (accountExists) {
-            break;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-        }
-        setState({ ...state, accountExists: true });
-      }
-    })();
-  }, [state.hasBeenSetup]);
-
   // -------------------------------------------------------
   // connect wallet account to exist, if it didn't
-  let publicKey;
   const connectWallet = async () => {
-    if (state.hasBeenSetup) {
-    const zkappWorkerClient = new ZkappWorkerClient();
+    if (!state.hasBeenSetup) {
+      const zkappWorkerClient = new ZkappWorkerClient();
 
-      console.log("Loading SnarkyJS...");
-      await zkappWorkerClient.loadSnarkyJS();
-      console.log("done");
+      await toast.promise(zkappWorkerClient.loadSnarkyJS(), {
+        pending: "Setting up SnarkyJS...",
+        success: "Snarky JS is Ready",
+      });
 
       await zkappWorkerClient.setActiveInstanceToBerkeley();
 
@@ -92,14 +56,14 @@ export default function Home() {
       console.log("using key", publicKey.toBase58());
 
       console.log("checking if account exists...");
-      const res = await zkappWorkerClient.fetchAccount({ publicKey: publicKey! });
+      const res = await toast.promise(zkappWorkerClient.fetchAccount({ publicKey: publicKey! }), { pending: "Checking if account exists" });
       const accountExists = res.error == null;
 
       await zkappWorkerClient.loadContract();
 
-      console.log("compiling zkApp");
-      await zkappWorkerClient.compileContract();
-      console.log("zkApp compiled");
+      await toast.promise(zkappWorkerClient.compileContract(), {
+        pending: "Checking if account have a balance",
+      });
 
       const zkappPublicKey = PublicKey.fromBase58("B62qrDe16LotjQhPRMwG12xZ8Yf5ES8ehNzZ25toJV28tE9FmeGq23A");
 
@@ -171,33 +135,66 @@ export default function Home() {
   if (state.hasWallet != null && !state.hasWallet) {
     const auroLink = "https://www.aurowallet.com/";
     const auroLinkElem = (
-      <a href={auroLink} target="_blank" rel="noreferrer">
-        {" "}
-        [Link]{" "}
+      <a href={auroLink} target="_blank" rel="noreferrer" className="text-blue-600">
+        here
       </a>
     );
-    hasWallet = <div> Could not find a wallet. Install Auro wallet here: {auroLinkElem}</div>;
+    hasWallet = (
+      <>
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+          <div className="fixed inset-0 w-full h-full bg-black opacity-40"></div>
+          <div className="flex items-center min-h-screen px-4 py-8">
+            <div className="relative w-full max-w-lg p-4 mx-auto bg-primary rounded-md shadow-lg">
+              <div className="mt-3 sm:flex flex-col justify-items-center">
+                <div className="flex items-center justify-center flex-none w-24 h-24 mx-auto">
+                  <Image src={auro} className="w-[64px] h-[64px]" alt="Alva" title="Alva" />
+                </div>
+                <div className="mt-2 text-center sm:ml-4 sm:text-left">
+                  <h4 className="text-lg font-semibold text-white w-full">Could not find a wallet</h4>
+                  <p className="mt-2 text-[15px] text-center leading-relaxed text-gray-500">Install Auro wallet {auroLinkElem}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+    // hasWallet =  <div> Could not find a wallet. Install Auro wallet here: {auroLinkElem}</div>;
   }
-
-  let setupText = state.hasBeenSetup ? "SnarkyJS Ready" : "Setting up SnarkyJS...";
-  let setup = (
-    <div>
-      {" "}
-      {setupText} {hasWallet}
-    </div>
-  );
 
   let accountDoesNotExist;
   if (state.hasBeenSetup && state.hasWallet && !state.accountExists) {
     const faucetLink = "https://faucet.minaprotocol.com/?address=" + state.publicKey!.toBase58();
     accountDoesNotExist = (
-      <div>
-        Account does not exist. Please visit the faucet to fund this account
-        <a href={faucetLink} target="_blank" rel="noreferrer">
-          {" "}
-          [Link]{" "}
-        </a>
-      </div>
+      <>
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+          <div className="fixed inset-0 w-full h-full bg-black opacity-40"></div>
+          <div className="flex items-center min-h-screen px-4 py-8">
+            <div className="relative w-full max-w-lg p-4 mx-auto bg-primary rounded-md shadow-lg">
+              <div className="mt-3 sm:flex">
+                <div className="flex items-center justify-center flex-none w-24 h-24 mx-auto ">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-64 h-64 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="mt-2 text-center sm:ml-4 sm:text-left">
+                  <h4 className="text-lg font-semibold text-white w-full">Account does not have balance. </h4>
+                  <p className="mt-2 text-[15px] leading-relaxed text-gray-500">
+                    Please visit the faucet to fund this account{" "}
+                    <a href={faucetLink} target="_blank" rel="noreferrer" className="text-blue-600">
+                      here
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -216,7 +213,7 @@ export default function Home() {
   } else {
     mainContent = (
       <div>
-        <button >Connect Wallet</button>
+        <button>Connect Wallet</button>
       </div>
     );
   }
@@ -226,13 +223,8 @@ export default function Home() {
       <div className={`${styles.paddingX} ${styles.flexCenter}`}>
         <div className={`${styles.boxWidth}`}>
           <nav className="w-full flex py-6 justify-between items-center navbar">
-            <Image src={logo} alt="hoobank" className="w-[124px] h-[32px]" />
-
             <ul className="list-none sm:flex hidden justify-end items-center flex-1">
-              {!state.hasWallet ? 
-                <Button title="Connect Wallet" onClick={connectWallet} /> 
-                : <span className="text-primary font-poppins bg-blue-gradient truncate text-ellipsis w-24 rounded-sm">{state.publicKey!.toBase58()}</span>
-              }
+              {!state.accountExists ? <Button title="Connect Wallet" onClick={connectWallet} /> : <span className="text-primary font-poppins bg-blue-gradient truncate text-ellipsis w-24 rounded-sm">{state.publicKey!.toBase58()}</span>}
             </ul>
 
             <div className="sm:hidden flex flex-1 justify-end items-center">
@@ -240,13 +232,11 @@ export default function Home() {
 
               <div className={`${!toggle ? "hidden" : "flex"} p-6 bg-black-gradient absolute top-20 right-0 mx-4 my-2 min-w-[140px] rounded-xl sidebar`}>
                 <ul className="list-none flex justify-end items-start flex-1 flex-col">
-                  {!state.hasWallet ? 
-                    <Button title="Connect Wallet" onClick={connectWallet} /> 
-                    : <span className="text-primary font-poppins bg-blue-gradient truncate text-ellipsis w-24 rounded-sm">{state.publicKey!.toBase58()}</span>
-                  }
+                  {!state.accountExists ? <Button title="Connect Wallet" onClick={connectWallet} /> : <span className="text-primary font-poppins bg-blue-gradient truncate text-ellipsis w-24 rounded-sm">{state.publicKey!.toBase58()}</span>}
                 </ul>
               </div>
             </div>
+            <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss={false} draggable pauseOnHover={false} theme="dark" />
           </nav>
         </div>
       </div>
@@ -254,6 +244,8 @@ export default function Home() {
       <div className={`bg-primary ${styles.flexStart}`}>
         <div className={`${styles.boxWidth}`}>
           <Hero />
+          {hasWallet}
+          {accountDoesNotExist}
         </div>
       </div>
 
